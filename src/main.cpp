@@ -78,12 +78,15 @@ void loop() {
       htu21d.setHeater(HTU21D_OFF);
       Serial.println(F("Humidity reading acceptable, sensor heater off."));
       LED.steadyRed();
-    } else {
+    } else if (humidity >= HUMIDITY_LOW_THRESHOLD &&
+               humidity <= HUMIDITY_HIGH_THRESHOLD) {
       panic = false;
       digitalWrite(HEATED_WICK_PIN, LOW);
       digitalWrite(BUILTIN_LED_PIN, LOW);
       LED.steadyGreen();
       Serial.println(F("Heated wick off"));
+    } else {
+      ;
     }
     Serial.println();
     runBool = false;
