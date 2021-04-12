@@ -5,9 +5,13 @@
 
 #define HEATED_WICK_PIN 5
 #define BUILTIN_LED_PIN 13
+#define HUMIDITY_HIGH_THRESHOLD 99
+#define HUMIDITY_LOW_THRESHOLD 90
+#define RUN_LOOP_DELAY 1000
 
-#define HUMIDITY_THRESHOLD 90
-
+bool runBool = false;
+bool panic = false;
+long lastRunMillis = 0;
 LEDControl LED;
 
 HTU21D htu21d;
@@ -47,30 +51,43 @@ void loop() {
   humidity = htu21d.readCompensatedHumidity();
   temperature = htu21d.readTemperature();
 
-  Serial.print(F("Temperature °C: \t\t"));
-  Serial.println(temperature);
-  Serial.print(F("Humidity %: \t\t\t"));
-  Serial.println(humidity);
-
-  if (humidity >= 99) {
-    Serial.println(F("Humidity reading too high, sensor heater on"));
-    htu21d.setHeater(HTU21D_ON);
-    digitalWrite(HEATED_WICK_PIN, LOW);
-    LED.panic();
-    htu21d.softReset();
-  } else if (humidity <= HUMIDITY_THRESHOLD) {
-    digitalWrite(BUILTIN_LED_PIN, HIGH);
-    digitalWrite(HEATED_WICK_PIN, HIGH);
-    Serial.println(F("Heated Wick on"));
-    LED.steadyRed();
-  } else {
-    htu21d.setHeater(HTU21D_OFF);
-    digitalWrite(HEATED_WICK_PIN, LOW);
-    digitalWrite(BUILTIN_LED_PIN, LOW);
-    LED.steadyGreen();
-    Serial.println(F("Heated wick off"));
+  if (millis() >= lastRunMillis + RUN_LOOP_DELAY) {
+    lastRunMillis = millis();
+    runBool = true;
+  }
+  if (panic == true) {
+    LED.doubleBlink();
   }
 
-  delay(1000);
-  Serial.println();
+  if (runBool == true) {
+    Serial.print(F("Temperature °C: \t\t"));
+    Serial.println(temperature);
+    Serial.print(F("Humidity %: \t\t\t"));
+    Serial.println(humidity);
+
+    if (humidity >= HUMIDITY_HIGH_THRESHOLD) {
+      Serial.println(F("Humidity reading too high, sensor heater on."));
+      htu21d.setHeater(HTU21D_ON);
+      digitalWrite(HEATED_WICK_PIN, LOW);
+      panic = true;
+    } else if (humidity <= HUMIDITY_LOW_THRESHOLD) {
+      panic = false;
+      digitalWrite(BUILTIN_LED_PIN, HIGH);
+      digitalWrite(HEATED_WICK_PIN, HIGH);
+      Serial.println(F("Heated Wick on"));
+      htu21d.setHeater(HTU21D_OFF);
+      Serial.println(F("Humidity reading acceptable, sensor heater off."));
+      LED.steadyRed();
+    } else {
+      panic = false;
+      digitalWrite(HEATED_WICK_PIN, LOW);
+      digitalWrite(BUILTIN_LED_PIN, LOW);
+      LED.steadyGreen();
+      Serial.println(F("Heated wick off"));
+    }
+    Serial.println();
+    runBool = false;
+  } else {
+    ;
+  }
 }
